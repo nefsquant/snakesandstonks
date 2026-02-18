@@ -17,8 +17,8 @@ def generate_mock_data(seed=42):
         trend = np.linspace(0, 20, days)
         noise = np.random.normal(0, volatility, days)
         prices = start_price + trend + np.cumsum(noise)
-        dates = pd.date_range(start="2023-01-01", periods=days)
-        return pd.DataFrame({'Date': dates, 'Close': prices})
+        day_numbers = np.arange(1, days + 1)
+        return pd.DataFrame({'Day': day_numbers, 'Close': prices})
         
     elif market_type == "MEAN_REVERTING":
         prices = [start_price]
@@ -30,14 +30,14 @@ def generate_mock_data(seed=42):
             noise = np.random.normal(0, volatility)
             current_price += pull + noise
             prices.append(current_price)
-        dates = pd.date_range(start="2023-01-01", periods=days)
-        return pd.DataFrame({'Date': dates, 'Close': prices})
+        day_numbers = np.arange(1, days + 1)
+        return pd.DataFrame({'Day': day_numbers, 'Close': prices})
         
     elif market_type == "RANDOM_WALK":
         noise = np.random.normal(0, volatility, days)
         prices = start_price + np.cumsum(noise)
-        dates = pd.date_range(start="2023-01-01", periods=days)
-        return pd.DataFrame({'Date': dates, 'Close': prices})
+        day_numbers = np.arange(1, days + 1)
+        return pd.DataFrame({'Day': day_numbers, 'Close': prices})
     
     prices = np.zeros(days)
     prices[0] = start_price
@@ -74,8 +74,8 @@ def generate_mock_data(seed=42):
         returns[i] = daily_return
         prices[i] = prices[i-1] * (1 + daily_return)
     
-    dates = pd.date_range(start="2023-01-01", periods=days)
-    return pd.DataFrame({'Date': dates, 'Close': prices})
+    day_numbers = np.arange(1, days + 1)
+    return pd.DataFrame({'Day': day_numbers, 'Close': prices})
 
 def export_data_to_csv(seed=42, filename="market_data.csv"):
     market_type = getattr(config, 'MARKET_TYPE', 'COMPLEX')
@@ -117,7 +117,7 @@ def _run_core_simulation(strategy_function, df):
     for i in range(20, len(df)):
         historical_slice = df.iloc[:i]
         current_price = historical_slice['Close'].iloc[-1]
-        current_date = historical_slice['Date'].iloc[-1]
+        current_day = historical_slice['Day'].iloc[-1]
         
         signal = strategy_function(historical_slice, shares)
         
@@ -129,7 +129,7 @@ def _run_core_simulation(strategy_function, df):
                 shares += trade_size
                 cash -= (current_price * trade_size)
                 cash -= commission_fee
-                buy_signals.append((current_date, current_price))
+                buy_signals.append((current_day, current_price))
             
         elif signal == "SELL":
             new_share_count = shares - trade_size
@@ -139,12 +139,12 @@ def _run_core_simulation(strategy_function, df):
                 shares -= trade_size
                 cash += (current_price * trade_size)
                 cash -= commission_fee
-                sell_signals.append((current_date, current_price))
+                sell_signals.append((current_day, current_price))
 
         total_value = cash + (shares * current_price)
         portfolio_value_history.append(total_value)
         position_history.append(shares)
-        history_dates.append(current_date)
+        history_dates.append(current_day)
 
     final_price = df['Close'].iloc[-1]
     final_value = cash + (shares * final_price)
@@ -183,10 +183,10 @@ def run_simulation(strategy_function, seed=42):
     benchmark_return = ((benchmark_value - initial_cash) / initial_cash) * 100
 
     perf_df = pd.DataFrame({
-        'Date': results['history_dates'],
+        'Day': results['history_dates'],
         'Value': results['portfolio_values'],
         'Position': results['position_history']
-    }).set_index('Date')
+    }).set_index('Day')
     
 
     perf_df['Daily_Return'] = perf_df['Value'].pct_change()
@@ -214,7 +214,7 @@ def run_simulation(strategy_function, seed=42):
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 16), sharex=True)
     
     # 1. Price Chart with Signals
-    ax1.plot(df['Date'], df['Close'], label='Stock Price', color='gray', alpha=0.5)
+    ax1.plot(df['Day'], df['Close'], label='Stock Price', color='gray', alpha=0.5)
     if results['buy_signals']:
         b_dates, b_prices = zip(*results['buy_signals'])
         ax1.scatter(b_dates, b_prices, marker='^', color='green', s=100, label='Buy', zorder=5)
@@ -223,6 +223,7 @@ def run_simulation(strategy_function, seed=42):
         ax1.scatter(s_dates, s_prices, marker='v', color='red', s=100, label='Sell', zorder=5)
     ax1.set_title(f"Market Price & Trades (Profit: ${total_profit:.2f})")
     ax1.set_ylabel("Price ($)")
+    ax1.set_xlabel("Day")
     ax1.legend()
     ax1.grid(True, alpha=0.3)
     
@@ -231,6 +232,7 @@ def run_simulation(strategy_function, seed=42):
     ax2.axhline(0, color='black', linewidth=1, linestyle='--')
     ax2.set_title("Position Size (Shares Held)")
     ax2.set_ylabel("Shares")
+    ax2.set_xlabel("Day")
     ax2.grid(True, alpha=0.3)
     
     # 3. Total Profit Over Time
@@ -240,12 +242,14 @@ def run_simulation(strategy_function, seed=42):
     ax3.plot(perf_df.index, profit_curve, color='black', linewidth=1)
     ax3.set_title("Total Profit/Loss Over Time")
     ax3.set_ylabel("Profit ($)")
+    ax3.set_xlabel("Day")
     ax3.grid(True, alpha=0.3)
 
     # 4. Sharpe Ratio Over Time
     ax4.plot(perf_df.index, perf_df['Sharpe'], color='purple')
     ax4.set_title(f"Sharpe Ratio (Risk-Adjusted Return) - Final: {final_sharpe:.2f}")
     ax4.set_ylabel("Sharpe")
+    ax4.set_xlabel("Day")
     ax4.axhline(1.0, color='green', linestyle='--', label='Good (>1)')
     ax4.axhline(0.0, color='red', linestyle='--', label='Bad (<0)')
     ax4.legend(loc='upper left')
