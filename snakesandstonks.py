@@ -43,34 +43,70 @@ def generate_mock_data(seed=42):
     prices[0] = start_price
     returns = np.zeros(days)
     
-    regime_length = 100
-    num_regimes = (days // regime_length) + 1
+    # Market regime parameters (changes every 60-140 days for realism)
+    regime_transitions = [0]  # Days when regimes change
+    current_day = 0
+    while current_day < days:
+        regime_length = np.random.randint(60, 141)  # Variable regime length
+        current_day += regime_length
+        if current_day < days:
+            regime_transitions.append(current_day)
     
+    # Randomly assign regime types: 0=trending up, 1=trending down, 2=mean reverting
+    num_regimes = len(regime_transitions)
     regimes = np.random.choice([0, 1, 2], size=num_regimes, p=[0.4, 0.25, 0.35])
     
+    # Occasional price shocks per regime
+    shock_days = set()
+    for regime_idx in range(num_regimes):
+        if np.random.random() < 0.15:  # 15% chance of shock in each regime
+            start_day = regime_transitions[regime_idx]
+            end_day = regime_transitions[regime_idx + 1] if regime_idx + 1 < num_regimes else days
+            shock_day = np.random.randint(start_day + 10, min(end_day, days))  # Shock happens mid-regime
+            if shock_day < days:
+                shock_days.add(shock_day)
+    
+    # Drifting fair value (starts at start_price, drifts up slowly)
+    fair_value_drift = 0.0002  # +0.02% per day
+    
     for i in range(1, days):
-        current_regime = regimes[i // regime_length]
+        # Determine current regime based on transitions
+        current_regime = 0
+        for idx in range(len(regime_transitions) - 1, -1, -1):
+            if i >= regime_transitions[idx]:
+                current_regime = regimes[idx]
+                break
         
-        if current_regime == 0: 
-            trend = 0.0008 
-        elif current_regime == 1:
-            trend = -0.0005 
-        else: 
-            deviation = (prices[i-1] - start_price) / start_price
-            trend = -deviation * 0.03 
+        # Calculate drifting fair value
+        fair_value = start_price * (1 + fair_value_drift * i)
         
-        cycle = 0.002 * np.sin(2 * np.pi * i / 20)
+        # 1. TREND COMPONENT (depends on regime)
+        if current_regime == 0:  # Trending up
+            trend = 0.0008  # +0.08% daily trend
+        elif current_regime == 1:  # Trending down
+            trend = -0.0005  # -0.05% daily trend
+        else:  # Mean reverting (to drifting fair value)
+            deviation = (prices[i-1] - fair_value) / fair_value
+            trend = -deviation * 0.015  # Weaker 1.5% pull per day
         
+        # 2. MOMENTUM COMPONENT (stronger - recent returns influence future)
         if i >= 5:
             recent_return = np.mean(returns[i-5:i])
-            momentum = recent_return * 0.15  
+            momentum = recent_return * 0.25  # Stronger 25% carry
         else:
             momentum = 0
         
+        # 3. RANDOM NOISE
         pct_volatility = volatility / start_price
         noise = np.random.normal(0, pct_volatility)
         
-        daily_return = trend + cycle + momentum + noise
+        # 4. PRICE SHOCKS (occasional sudden jumps)
+        shock = 0
+        if i in shock_days:
+            shock = np.random.choice([-0.05, 0.05])  # ±5% shock
+        
+        # Calculate return and update price
+        daily_return = trend + momentum + noise + shock
         returns[i] = daily_return
         prices[i] = prices[i-1] * (1 + daily_return)
     

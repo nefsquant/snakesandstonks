@@ -1,4 +1,4 @@
-from snakesandstonks import run_simulation
+from snakesandstonks import run_simulation, run_stress_test
 import config
 
 def my_trading_strategy(data, current_shares):    
@@ -25,4 +25,4 @@ def my_trading_strategy(data, current_shares):
 
 # DO NOT CHANGE BELOW THIS LINE!
 if __name__ == "__main__":
-    run_simulation(my_trading_strategy, config.SEED)
+    run_stress_test(my_trading_strategy, config.SEED)
