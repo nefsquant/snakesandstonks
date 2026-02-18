@@ -199,17 +199,19 @@ def run_simulation(strategy_function, seed=42):
     final_sharpe = perf_df['Sharpe'].iloc[-1]
 
     # --- Print Stats ---
+    benchmark_pnl = benchmark_value - initial_cash
+    
     print("-" * 40)
     print(f"FINAL RESULTS")
     print("-" * 40)
-    print(f"Initial Cash:      ${initial_cash:.2f}")
-    print(f"Final Value:       ${final_value:.2f}")
-    print(f"Total Profit:      ${total_profit:.2f}")
-    print(f"Return on Inv:     {percent_return:.2f}%")
-    print(f"Final Sharpe Ratio:{final_sharpe:.2f}")
+    print(f"Your PnL:          ${total_profit:.2f}")
+    print(f"Your Return:       {percent_return:.2f}%")
+    print(f"Sharpe Ratio:      {final_sharpe:.2f}")
     print("-" * 40)
-    print(f"📊 BENCHMARK (Buy & Hold)")
+    print(f"BENCHMARK (Buy & Hold)")
+    print(f"Benchmark PnL:     ${benchmark_pnl:.2f}")
     print(f"Benchmark Return:  {benchmark_return:.2f}%")
+    print("-" * 40)
     
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 16), sharex=True)
     
@@ -260,7 +262,7 @@ def run_simulation(strategy_function, seed=42):
 
 def run_stress_test(strategy_function, runs=50):
     market_type = getattr(config, 'MARKET_TYPE', 'COMPLEX')
-    print(f"⚔️  Starting Stress Test [Market: {market_type}] ({runs} runs)...")
+    print(f"Starting Stress Test [Market: {market_type}] ({runs} runs)...")
     
     profits = []
     sharpes = []
@@ -288,15 +290,24 @@ def run_stress_test(strategy_function, runs=50):
     avg_profit = sum(profits) / len(profits)
     avg_sharpe = sum(sharpes) / len(sharpes)
     
+    # Calculate benchmark stats
+    benchmark_profits = []
+    for i in range(runs):
+        df = generate_mock_data(seed=i)
+        res = _run_core_simulation(lambda x, y: "HOLD", df)  # Dummy to get benchmark
+        benchmark_profits.append(res['benchmark_value'] - initial_cash)
+    avg_benchmark = sum(benchmark_profits) / len(benchmark_profits)
+    
     print("\n" + "=" * 40)
     print(f"STRESS TEST REPORT")
     print("=" * 40)
     print(f"Simulations Run:    {runs}")
-    print(f"Average Profit:     ${avg_profit:.2f}")
+    print(f"Average PnL:        ${avg_profit:.2f}")
     print(f"Average Sharpe:     {avg_sharpe:.2f}")
     print("-" * 40)
     print(f"Best Run:           ${max(profits):.2f}")
     print(f"Worst Run:          ${min(profits):.2f}")
     print("-" * 40)
+    print(f"Benchmark Avg PnL:  ${avg_benchmark:.2f}")
     print(f"Win Rate (Make $):  {len([p for p in profits if p > 0]) / runs * 100:.0f}%")
     print(f"Win Rate (Beat Mkt):{wins_vs_benchmark / runs * 100:.0f}%")
