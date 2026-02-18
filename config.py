@@ -1,14 +1,11 @@
-# --- Game Settings ---
-INITIAL_CASH = 1000.0      # Starting money
-COMMISSION_FEE = 2.00      # Cost per trade (Buy or Sell)
-TRADE_SIZE = 10            # Number of shares per trade
-
-# --- Market Conditions ---
-# Options: "TRENDING", "MEAN_REVERTING", "RANDOM_WALK"
-MARKET_TYPE = "MEAN_REVERTING" 
-
-# --- Data Generation Settings ---
+SEED = 42
+INITIAL_CASH = 1000.0      
+COMMISSION_FEE = 2.00      
+TRADE_SIZE = 10            
+ALLOW_SHORTING = True      
+POSITION_LIMIT = 50
+MARKET_TYPE = "COMPLEX"
 SIMULATION_DAYS = 200
 START_PRICE = 100.0
-VOLATILITY = 2.0           # Higher = wilder price swings
-REVERSION_SPEED = 0.1      # Only used for MEAN_REVERTING (0.01 - 0.5)
+VOLATILITY = 2.0         
+REVERSION_SPEED = 0.1      
