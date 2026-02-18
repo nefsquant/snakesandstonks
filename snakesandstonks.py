@@ -190,9 +190,9 @@ def run_simulation(strategy_function, seed=42):
     
 
     perf_df['Daily_Return'] = perf_df['Value'].pct_change()
-  
-    rolling_mean = perf_df['Daily_Return'].expanding().mean()
-    rolling_std = perf_df['Daily_Return'].expanding().std()
+
+    rolling_mean = perf_df['Daily_Return'].expanding(min_periods=20).mean()
+    rolling_std = perf_df['Daily_Return'].expanding(min_periods=20).std()
     
     perf_df['Sharpe'] = (rolling_mean / rolling_std * np.sqrt(252)).fillna(0)
     
